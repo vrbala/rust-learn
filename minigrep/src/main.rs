@@ -8,12 +8,12 @@ fn main() {
 
     let config = Config::new(&args)
         .unwrap_or_else(|err| {
-            println!("Unable to parse arguments. {}", err);
+            eprintln!("Unable to parse arguments. {}", err);
             process::exit(1);
         });
 
     if let Err(e) = minigrep::run(config) {
-        println!("Application Error: {}", e);
+        eprintln!("Application Error: {}", e);
         process::exit(1);
     }
 }
