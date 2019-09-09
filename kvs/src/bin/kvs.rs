@@ -3,6 +3,8 @@ extern crate clap;
 use clap::{App, Arg, SubCommand};
 use std::process;
 
+use kvs::SetCommand;
+
 fn main() {
     let matches = App::new("A simple distributed key-value store.")
         .version(env!("CARGO_PKG_VERSION"))
@@ -44,25 +46,31 @@ fn main() {
         )
         .get_matches();
 
-    match matches.subcommand_name() {
-        Some("get") => {
-            eprintln!("unimplemented");
-            panic!();
-        }
-        Some("set") => {
-            eprintln!("unimplemented");
-            panic!();
-        }
-        Some("rm") => {
-            eprintln!("unimplemented");
-            panic!();
-        }
-        None => {
-            process::exit(1);
-        }
-        Some(_) => {
-            eprintln!("Unknown command.");
-            process::exit(2);
-        }
-    };
+    // match matches.subcommand_name() {
+    //     Some("get") => {
+    //         eprintln!("unimplemented");
+    //         panic!();
+    //     }
+    //     Some("set") => {
+    //         eprintln!("unimplemented");
+    //         panic!();
+    //     }
+    //     Some("rm") => {
+    //         eprintln!("unimplemented");
+    //         panic!();
+    //     }
+    //     None => {
+    //         process::exit(1);
+    //     }
+    //     Some(_) => {
+    //         eprintln!("Unknown command.");
+    //         process::exit(2);
+    //     }
+    // };
+
+    if let Some(set) = matches.subcommand_matches("set") {
+        let key = set.value_of("key").unwrap();
+        let value = set.value_of("value").unwrap();
+        let set = SetCommand::new(String::from(key), String::from(value));
+    }
 }
