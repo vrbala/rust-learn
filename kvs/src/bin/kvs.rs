@@ -3,7 +3,7 @@ extern crate clap;
 use clap::{App, Arg, SubCommand};
 use std::process;
 
-use kvs::SetCommand;
+use kvs::KvStore;
 
 fn main() {
     let matches = App::new("A simple distributed key-value store.")
@@ -71,6 +71,15 @@ fn main() {
     if let Some(set) = matches.subcommand_matches("set") {
         let key = set.value_of("key").unwrap();
         let value = set.value_of("value").unwrap();
-        let set = SetCommand::new(String::from(key), String::from(value));
+        let mut kvs = KvStore::new();
+        kvs.set(String::from(key), String::from(value))
+            .expect("Unable to set key value pair.");
+        process::exit(0);
+    } else if let Some(rm) = matches.subcommand_matches("rm") {
+        let key = rm.value_of("key").unwrap();
+        let mut kvs = KvStore::new();
+        kvs.remove(String::from(key))
+            .expect("Unable to remove key.");
+        process::exit(0);
     }
 }

@@ -4,6 +4,10 @@ extern crate serde;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::ops::Drop;
 use std::path::Path;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -11,17 +15,19 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct KvStore {
     map: HashMap<String, String>,
+    file: File,
 }
 
 impl KvStore {
     pub fn new() -> KvStore {
-        KvStore {
-            map: HashMap::new(),
-        }
+        let cwd = env::current_dir().unwrap();
+        KvStore::open(cwd.as_path()).unwrap()
     }
 
     pub fn set(self: &mut KvStore, key: String, value: String) -> Result<()> {
-        self.map.insert(key, value);
+        let set_command = SetCommand { key, value };
+        self.file.write_all(set_command.to_json().as_ref());
+        self.map.insert(set_command.key, set_command.value);
         Ok(())
     }
 
@@ -33,12 +39,29 @@ impl KvStore {
     }
 
     pub fn remove(self: &mut KvStore, key: String) -> Result<()> {
-        self.map.remove(&key);
+        let rm_command = RmCommand { key };
+        self.file.write_all(rm_command.to_json().as_ref());
+        self.map.remove(&rm_command.key);
         Ok(())
     }
 
     pub fn open(dir: &Path) -> Result<KvStore> {
-        unimplemented!();
+        let filename = dir.join(Path::new("data.db"));
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(filename)?;
+        Ok(KvStore {
+            map: HashMap::new(),
+            file: file,
+        })
+    }
+}
+
+impl Drop for KvStore {
+    fn drop(&mut self) {
+        drop(&self.file);
     }
 }
 
@@ -61,6 +84,16 @@ impl SetCommand {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RmCommand {
     key: String,
+}
+
+impl RmCommand {
+    pub fn new(key: String) -> RmCommand {
+        RmCommand { key }
+    }
+
+    pub fn to_json(self: &RmCommand) -> String {
+        serde_json::to_string(self).unwrap()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
