@@ -81,5 +81,16 @@ fn main() {
         kvs.remove(String::from(key))
             .expect("Unable to remove key.");
         process::exit(0);
+    } else if let Some(get) = matches.subcommand_matches("get") {
+        let key = get.value_of("key").unwrap();
+        let kvs = KvStore::new();
+        match kvs.get(String::from(key)) {
+            Ok(Some(value)) => {
+                println!("{}", value);
+                process::exit(0);
+            }
+            Ok(None) => process::exit(1),
+            Err(_) => process::exit(2),
+        }
     }
 }

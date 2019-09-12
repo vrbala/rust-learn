@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::io::{BufRead, BufReader};
 use std::ops::Drop;
 use std::path::Path;
 
@@ -25,9 +26,13 @@ impl KvStore {
     }
 
     pub fn set(self: &mut KvStore, key: String, value: String) -> Result<()> {
-        let set_command = SetCommand { key, value };
-        self.file.write_all(set_command.to_json().as_ref());
-        self.map.insert(set_command.key, set_command.value);
+        let set_command = Command::SetCommand { key, value };
+        self.file
+            .write_all(serde_json::to_string(&set_command).unwrap().as_ref())?;
+        self.file.write_all(b"\n")?;
+        if let Command::SetCommand { key, value } = set_command {
+            self.map.insert(key, value);
+        }
         Ok(())
     }
 
@@ -39,9 +44,12 @@ impl KvStore {
     }
 
     pub fn remove(self: &mut KvStore, key: String) -> Result<()> {
-        let rm_command = RmCommand { key };
-        self.file.write_all(rm_command.to_json().as_ref());
-        self.map.remove(&rm_command.key);
+        let rm_command = Command::RmCommand { key };
+        self.file
+            .write_all(serde_json::to_string(&rm_command).unwrap().as_ref())?;
+        if let Command::RmCommand { key } = rm_command {
+            self.map.remove(&key);
+        }
         Ok(())
     }
 
@@ -52,10 +60,18 @@ impl KvStore {
             .write(true)
             .create(true)
             .open(filename)?;
-        Ok(KvStore {
-            map: HashMap::new(),
-            file: file,
-        })
+
+        let mut map = HashMap::new();
+        let buffer = BufReader::new(&file);
+        for line in buffer.lines() {
+            let cmd = serde_json::from_str(&line.unwrap())?;
+            match cmd {
+                Command::SetCommand { key, value } => map.insert(key, value),
+                Command::RmCommand { key } => map.remove(&key),
+                _ => panic!("Corrupt data in the db file."),
+            };
+        }
+        Ok(KvStore { map, file })
     }
 }
 
@@ -66,37 +82,8 @@ impl Drop for KvStore {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SetCommand {
-    key: String,
-    value: String,
-}
-
-impl SetCommand {
-    pub fn new(key: String, value: String) -> SetCommand {
-        SetCommand { key, value }
-    }
-
-    pub fn to_json(self: &SetCommand) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RmCommand {
-    key: String,
-}
-
-impl RmCommand {
-    pub fn new(key: String) -> RmCommand {
-        RmCommand { key }
-    }
-
-    pub fn to_json(self: &RmCommand) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetCommand {
-    key: String,
+pub enum Command {
+    SetCommand { key: String, value: String },
+    RmCommand { key: String },
+    GetCommand { key: String },
 }
